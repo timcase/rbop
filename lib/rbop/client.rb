@@ -2,8 +2,16 @@
 
 module Rbop
   class Client
-    def initialize
+    attr_reader :account, :vault
+
+    def initialize(account:, vault:)
+      @account = account
+      @vault = vault
       ensure_cli_present
+    end
+
+    def get(item)
+      raise NotImplementedError, "get method not yet implemented"
     end
 
     private
