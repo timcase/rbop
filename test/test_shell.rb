@@ -18,10 +18,13 @@ class TestShell < Minitest::Test
   end
 
   def test_run_with_non_zero_exit_status
-    stdout, status = Rbop::Shell.run("exit 1")
+    exception = assert_raises(Rbop::Shell::CommandFailed) do
+      Rbop::Shell.run("exit 1")
+    end
 
-    assert_equal "", stdout
-    assert_equal 1, status
+    assert_equal "exit 1", exception.command
+    assert_equal 1, exception.status
+    assert_equal "Command failed with status 1: exit 1", exception.message
   end
 
   def test_run_with_environment_variables
@@ -60,6 +63,36 @@ class TestShell < Minitest::Test
     assert_equal 0, status
     assert_equal 1, fake_runner.commands.length
     assert_equal "echo test", fake_runner.commands.first[:cmd]
+
+    # Restore original runner
+    Rbop.shell_runner = original_runner
+  end
+
+  def test_fake_runner_with_command_failed
+    # Create fake runner that mimics Shell behavior with non-zero status
+    fake_runner = Module.new do
+      class << self
+        def run(cmd, env = {})
+          cmd_string = cmd.is_a?(Array) ? cmd.join(" ") : cmd
+          # Simulate non-zero exit status
+          status = 42
+          raise Rbop::Shell::CommandFailed.new(cmd_string, status)
+        end
+      end
+    end
+
+    # Replace shell runner
+    original_runner = Rbop.shell_runner
+    Rbop.shell_runner = fake_runner
+
+    # Verify CommandFailed is raised with FakeRunner
+    exception = assert_raises(Rbop::Shell::CommandFailed) do
+      Rbop.shell_runner.run("some command")
+    end
+
+    assert_equal "some command", exception.command
+    assert_equal 42, exception.status
+    assert_equal "Command failed with status 42: some command", exception.message
 
     # Restore original runner
     Rbop.shell_runner = original_runner

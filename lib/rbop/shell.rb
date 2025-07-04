@@ -3,6 +3,17 @@
 module Rbop
   # Shell runner for executing system commands
   module Shell
+    # Exception raised when a command fails
+    class CommandFailed < RuntimeError
+      attr_reader :command, :status
+
+      def initialize(command, status)
+        @command = command
+        @status = status
+        super("Command failed with status #{status}: #{command}")
+      end
+    end
+
     module_function
 
     # Run a command and return stdout and exit status
@@ -23,6 +34,10 @@ module Rbop
       end
 
       status = $?.exitstatus
+
+      if status != 0
+        raise CommandFailed.new(cmd_string, status)
+      end
 
       [ stdout, status ]
     end
