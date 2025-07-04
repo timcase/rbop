@@ -2,7 +2,7 @@
 
 module Rbop
   class Client
-    attr_reader :account, :vault
+    attr_reader :account, :vault, :token
 
     def initialize(account:, vault:)
       @account = account
@@ -19,6 +19,14 @@ module Rbop
       true
     rescue Rbop::Shell::CommandFailed
       false
+    end
+
+    def signin!
+      stdout = Rbop.shell_runner.run("op signin #{@account} --raw --force")
+      @token = stdout.strip
+      true
+    rescue Rbop::Shell::CommandFailed
+      raise RuntimeError, "1Password sign-in failed"
     end
 
     private

@@ -62,4 +62,29 @@ class ClientTest < Minitest::Test
     
     assert_equal false, client.whoami?
   end
+
+  def test_signin_success_returns_true_and_sets_token
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op signin test-account --raw --force", stdout: "OPSESSIONTOKEN\n", status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    result = client.signin!
+    
+    assert_equal true, result
+    assert_equal "OPSESSIONTOKEN", client.token
+  end
+
+  def test_signin_failure_raises_runtime_error
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op signin test-account --raw --force", stdout: "", status: 1)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    
+    error = assert_raises(RuntimeError) do
+      client.signin!
+    end
+    
+    assert_equal "1Password sign-in failed", error.message
+    assert_nil client.token
+  end
 end
