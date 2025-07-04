@@ -2,6 +2,7 @@
 
 require_relative "rbop/version"
 require_relative "rbop/shell"
+require_relative "rbop/client"
 
 module Rbop
   class Error < StandardError; end

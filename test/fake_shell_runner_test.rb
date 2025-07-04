@@ -28,7 +28,7 @@ class FakeShellRunnerTest < Minitest::Test
       Rbop.shell_runner.run("op signin")
     end
     
-    assert_equal "Command failed with status 1", error.message
+    assert_equal "Command failed with status 1: op signin", error.message
     assert_equal "Authentication failed\n", error.stdout
     assert_equal 1, error.status
   end

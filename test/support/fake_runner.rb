@@ -9,9 +9,8 @@ class FakeShellRunner
         status = response[1][:status]
         
         if status != 0
-          error = StandardError.new("Command failed with status #{status}")
+          error = Rbop::Shell::CommandFailed.new(cmd, status)
           error.define_singleton_method(:stdout) { stdout }
-          error.define_singleton_method(:status) { status }
           raise error
         end
         
