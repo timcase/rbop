@@ -14,6 +14,13 @@ module Rbop
       raise NotImplementedError, "get method not yet implemented"
     end
 
+    def whoami?
+      Rbop.shell_runner.run("op whoami --format=json")
+      true
+    rescue Rbop::Shell::CommandFailed
+      false
+    end
+
     private
 
     def ensure_cli_present

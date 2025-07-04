@@ -44,4 +44,22 @@ class ClientTest < Minitest::Test
     
     assert_equal "get method not yet implemented", error.message
   end
+
+  def test_whoami_returns_true_when_authenticated
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: '{"account":"test-account"}', status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    
+    assert_equal true, client.whoami?
+  end
+
+  def test_whoami_returns_false_when_not_authenticated
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: "", status: 1)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    
+    assert_equal false, client.whoami?
+  end
 end
