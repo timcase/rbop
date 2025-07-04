@@ -228,3 +228,440 @@ Every prompt ensures:
 If a step feels too big during implementation, split it ad-hoc (e.g., E5-a timestamp regex, E5-b `Time.parse`). But this list should already be granular enough for safe, incremental progress.
 
 Happy building!
+
+Below are the **remaining prompts B2 … F4**, each contained in its own `text` block so you can feed them sequentially to your code-generation LLM.
+They pick up exactly where Prompt B1 left off and carry the project through to the final release checklist.
+
+---
+
+### Prompt B2
+
+```text
+**Task**: Inject a configurable shell runner for tests.
+
+**Requirements**
+1. Add `Rbop.shell_runner=` writer in `lib/rbop.rb`.
+2. Modify `Rbop::Shell.run` to raise `Rbop::Shell::CommandFailed` (custom subclass of RuntimeError) when status ≠ 0; include command and status in the message.
+3. Update existing code to rescue or expect this new error as needed.
+
+**Tests**
+* In tests, assign a fake runner via `Rbop.shell_runner = FakeRunner`.
+* Verify that when `FakeRunner` returns non-zero status, `Rbop::Shell::CommandFailed` is raised with the correct message.
+
+All tests must pass.
+```
+
+---
+
+### Prompt B3
+
+```text
+**Task**: Implement a reusable `FakeShellRunner` for the test suite.
+
+**Requirements**
+1. Create `test/support/fake_runner.rb` defining `FakeShellRunner.run(cmd, env = {})`.
+   * Accepts `cmd`, `env`.
+   * Looks up canned responses from a registry `FakeShellRunner.define(cmd_pattern, stdout:, status:)`.
+   * Default stdout = "", status = 0 if no pattern matches.
+
+2. Extend `test_helper.rb` to `require_relative "support/fake_runner"`.
+
+**Tests**
+* Define canned response for `"op --version"` returning `"2.25.0\n"` and status 0; assert `Rbop.shell_runner.run("op --version")` yields that stdout.
+* Define canned response with status 1 and assert error raised via B2 logic.
+
+Leave real runner unchanged in production code.
+```
+
+---
+
+### Prompt B4
+
+```text
+**Task**: Add `Client#ensure_cli_present` and call it during initialization.
+
+**Requirements**
+1. In `Rbop::Client.initialize`, call `ensure_cli_present`.
+2. Implement `ensure_cli_present`:
+   * Runs `op --version` via `Rbop.shell_runner`.
+   * Raises `RuntimeError, "1Password CLI (op) not found"` on `Rbop::Shell::CommandFailed`.
+
+**Tests**
+* Use `FakeShellRunner`:
+  * Scenario success: canned `"op --version"` status 0 → no error.
+  * Scenario failure: status 1 → expect RuntimeError with message above.
+```
+
+---
+
+### Prompt B5
+
+```text
+**Task**: Wire `Rbop::Client` into project namespace.
+
+**Requirements**
+1. Fill out `lib/rbop/client.rb` with constructor saving `@account`, `@vault`.
+2. Add trivial `#get` placeholder (raises NotImplementedError).
+
+**Tests**
+* Instantiate client with account and vault; assert accessors return supplied values.
+* Use existing fake runner stubs so no CLI is executed beyond `op --version`.
+```
+
+---
+
+### Prompt C1
+
+```text
+**Task**: Implement `Client#whoami?`.
+
+**Requirements**
+1. Method runs `op whoami --format=json` with session env (if any).
+2. Returns `true` on status 0, `false` on non-zero exit (rescue `Rbop::Shell::CommandFailed`).
+
+**Tests**
+* FakeRunner canned response "op whoami --format=json" status 0 → expect true.
+* Same command status 1 → expect false.
+```
+
+---
+
+### Prompt C2
+
+```text
+**Task**: Implement `Client#signin!`.
+
+**Requirements**
+1. Run `op signin #{@account} --raw --force` through `Rbop.shell_runner`.
+2. Capture stdout (`token`), strip whitespace, store in `@token`.
+3. Return `true` on success.
+4. On non-zero exit, raise `RuntimeError, "1Password sign-in failed"`.
+
+**Tests**
+* FakeRunner returns `"OPSESSIONTOKEN\n"` status 0 → `signin!` returns true and sets `@token`.
+* Failure scenario status 1 → expect RuntimeError with message.
+```
+
+---
+
+### Prompt C3
+
+```text
+**Task**: Add `Client#ensure_signed_in`.
+
+**Requirements**
+1. Call `whoami?`; if false, call `signin!`.
+2. On signin failure, propagate exception.
+3. Call `ensure_signed_in` at top of `#get` (currently placeholder).
+
+**Tests**
+* Scenario 1: FakeRunner `whoami` status 0 → `signin!` NOT called (record invocations).
+* Scenario 2: `whoami` status 1 then `signin!` success → both commands invoked.
+* Scenario 3: `whoami` status 1 then `signin!` failure → exception propagates.
+```
+
+---
+
+### Prompt C4
+
+```text
+**Task**: Pass session token via env hash in Shell.run.
+
+**Requirements**
+1. Modify internal helper (maybe `build_env`) to set `"OP_SESSION_#{account_short}" => @token` if `@token`.
+2. Use this env for `op whoami` and `op item get`.
+3. `account_short` = part before first dot in `@account` (e.g., "my-account" → "my-account").
+
+**Tests**
+* After successful `signin!`, assert next `whoami` call receives env with correct key in FakeRunner (inspect recorded env argument).
+```
+
+---
+
+### Prompt C5
+
+```text
+**Task**: Refactor FakeRunner to capture env argument.
+
+**Requirements**
+1. FakeRunner.run should store each call in `FakeRunner.calls << {cmd:, env:}`.
+2. Add `FakeRunner.last_call` helper for tests.
+3. Update existing tests to use these helpers.
+
+No production code changes. Ensure all tests still pass.
+```
+
+---
+
+### Prompt D1
+
+```text
+**Task**: Create `Rbop::Selector.parse`.
+
+**Requirements**
+1. `Rbop::Selector.parse(**kwargs)` accepts **one** of `title:`, `id:`, `url:`.
+2. Returns `{type:, value:}` where type ∈ `:title, :id, :url_share, :url_private`.
+3. Detect share URL if starts with `https://share.1password.com/`.
+4. Detect private link URL if contains `/open/i?`.
+
+5. Raise `ArgumentError` if:
+   * none or multiple keys passed,
+   * string does not match expected patterns.
+
+**Tests**
+* One test per valid type.
+* Error cases: no key, multiple keys, malformed URL.
+```
+
+---
+
+### Prompt D2
+
+```text
+**Task**: Implement `Client#build_op_args(selector)`.
+
+**Requirements**
+1. Accept hash from Selector.parse.
+2. Return array of strings for `op item get`:
+   * Title → [`"get"`, selector.value, `"--vault", vault]`
+   * ID    → [`"get", "--id", selector.value`]
+   * URLs  → [`"get", "--share-link", selector.value`]
+
+3. If `vault:` override was supplied to `#get`, use that vault (stored in local param).
+
+**Tests**
+* Each selector type returns expected array.
+* Vault override works.
+```
+
+---
+
+### Prompt D3
+
+```text
+**Task**: Flesh out `Client#get`.
+
+**Requirements**
+1. Accept keyword args (`title:`, `id:`, `url:`) plus optional `vault:`.
+2. Call `ensure_signed_in`.
+3. Build args via `build_op_args`.
+4. Run `op item` command with `"--format", "json"`.
+5. Parse stdout JSON (`JSON.parse`); raise `JSON::ParserError` on failure.
+6. Wrap in `Rbop::Item.new(raw_hash)` and return.
+
+**Tests**
+* FakeRunner returns canned JSON for title → assert item class & raw data.
+* Ensure `Client.get` raises JSON::ParserError on invalid JSON stdout.
+```
+
+---
+
+### Prompt D4
+
+```text
+**Task**: Implement minimal `Rbop::Item` with `#to_h`, `#as_json`, and `#[]`.
+
+**Requirements**
+1. Store deep-dup of raw hash (`@data`).
+2. `to_h` → deep copy.
+3. `as_json` → alias for `to_h`.
+4. `[]` → lookup on `@data` (string/symbol indifferent).
+
+**Tests**
+* Verify original hash unchanged when modifying `item.to_h`.
+* `[]` works for "id" and :id.
+```
+
+---
+
+### Prompt D5
+
+```text
+**Task**: Add first integration between Client and Item.
+
+**Requirements**
+1. In `Client#get` test from D3, call `item.to_h["title"]` and assert expected value.
+2. Ensure FakeRunner scenario for ID and URL selectors also parse to Item.
+
+No production code changes—extend tests only.
+```
+
+---
+
+### Prompt E1
+
+```text
+**Task**: Add `method_missing` and `respond_to_missing?` to `Rbop::Item`.
+
+**Requirements**
+1. Top-level keys of `@data` accessible as methods.
+2. Use `super` for undefined keys.
+3. Cache looked-up values in `@memo` hash.
+
+**Tests**
+* JSON with key "title" → `item.title` returns correct string.
+* `item.respond_to?(:title)` is true.
+```
+
+---
+
+### Prompt E2
+
+```text
+**Task**: Expose field labels as methods.
+
+**Requirements**
+1. Scan `@data["fields"]` (array).
+2. Convert each `label` to snake_case via `ActiveSupport::Inflector.underscore`.
+3. If collision with existing method name or Ruby method (e.g., `object_id`), generate `field_` + label.
+4. Store mapping in `@field_methods` for quick lookup.
+
+**Tests**
+* Field "password" and key "password" collision → `item.field_password` exists.
+* Non-collision field accessible via `item.password`.
+```
+
+---
+
+### Prompt E3
+
+```text
+**Task**: Add timestamp casting.
+
+**Requirements**
+1. When returning value for a key:
+   * If key ends with `_at` or value matches ISO-8601 regex, return `Time.parse(value)`.
+2. Memoize cast result.
+
+**Tests**
+* Key "created_at" → returns `Time` instance.
+* Field label "lastEditedAt" also converts.
+```
+
+---
+
+### Prompt E4
+
+```text
+**Task**: Implement collision enumeration numbering.
+
+**Requirements**
+1. If `field_#{label}` already taken, append numeric suffix `_2`, `_3`, incrementally.
+
+**Tests**
+* JSON with two fields label "code" → methods `item.code`, `item.field_code_2` created.
+```
+
+---
+
+### Prompt E5
+
+```text
+**Task**: Complete `respond_to_missing?` to include field methods.
+
+**Requirements**
+1. Return true for any generated method name (keys + field map).
+
+**Tests**
+* `item.respond_to?(:field_password)` true when collision occurred.
+```
+
+---
+
+### Prompt E6
+
+```text
+**Task**: Add deep duplication helper to `Item#to_h`.
+
+**Requirements**
+1. Use `Marshal.load(Marshal.dump(@data))` or recursive dup to avoid mutation leaks.
+
+**Tests**
+* Mutating nested hash inside `item.to_h` does not affect original `item`.
+```
+
+---
+
+### Prompt E7
+
+```text
+**Task**: Add full coverage tests for `Rbop::Item`.
+
+**Requirements**
+* Build fixture JSON mirroring earlier example.
+* Cover:
+  * Key methods
+  * Field methods
+  * Collision prefix
+  * Numeric suffix
+  * Timestamp cast
+  * `[]`, `to_h`, `as_json`
+
+Ensure overall test suite coverage ≥ 95 %.
+```
+
+---
+
+### Prompt F1
+
+```text
+**Task**: Write project README.
+
+**Requirements**
+1. Installation (Gemfile snippet + `gem install rbop`).
+2. Quick start code block.
+3. Feature list (session mgmt, selectors, dynamic API).
+4. Limitations & thread-safety note.
+5. Link to 1Password CLI docs.
+
+Add badge for GitHub Actions status.
+```
+
+---
+
+### Prompt F2
+
+```text
+**Task**: Introduce version constant & changelog.
+
+**Requirements**
+1. Add `lib/rbop/version.rb` with `Rbop::VERSION = "0.1.0"`.
+2. Require this file in `lib/rbop.rb`.
+3. Create `CHANGELOG.md` with entries for 0.1.0.
+
+Update dummy test (A3) to assert new version.
+```
+
+---
+
+### Prompt F3
+
+```text
+**Task**: Add RELEASING.md manual instructions.
+
+**Requirements**
+1. Steps: bump version, update changelog, commit, tag `vX.Y.Z`, run tests, `gem build`, `gem push`.
+2. Mention setting `~/.gem/credentials`.
+
+No tests required.
+```
+
+---
+
+### Prompt F4
+
+```text
+**Task**: Final wiring & cleanup.
+
+**Requirements**
+1. Remove any TODOs or NotImplementedErrors.
+2. Ensure `Rbop::Client#get` fully integrated with `Rbop::Item`.
+3. Run `rubocop -A` (if configured) or ensure `bundle exec rake` passes.
+4. Push code; CI matrix must be green.
+
+Provide a summary of final file count, test count, and coverage percentage.
+```
+
+---
+
+Use these prompts sequentially after the earlier A1–B1 steps. Each prompt references only code that exists from prior steps, ensuring a smooth, test-driven, incremental build.
