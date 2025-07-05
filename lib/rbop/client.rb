@@ -11,6 +11,7 @@ module Rbop
     end
 
     def get(item)
+      ensure_signed_in
       raise NotImplementedError, "get method not yet implemented"
     end
 
@@ -30,6 +31,10 @@ module Rbop
     end
 
     private
+
+    def ensure_signed_in
+      signin! unless whoami?
+    end
 
     def ensure_cli_present
       Rbop.shell_runner.run("op --version")

@@ -3,6 +3,7 @@
 class FakeShellRunner
   class << self
     def run(cmd, env = {})
+      invocations << cmd
       response = registry.find { |pattern, _| cmd.match?(pattern) }
       if response
         stdout = response[1][:stdout]
@@ -26,6 +27,11 @@ class FakeShellRunner
 
     def clear!
       @registry = []
+      @invocations = []
+    end
+
+    def invocations
+      @invocations ||= []
     end
 
     private

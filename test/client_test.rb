@@ -87,4 +87,57 @@ class ClientTest < Minitest::Test
     assert_equal "1Password sign-in failed", error.message
     assert_nil client.token
   end
+
+  def test_ensure_signed_in_when_already_authenticated
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: '{"account":"test-account"}', status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    
+    error = assert_raises(NotImplementedError) do
+      client.get("some-item")
+    end
+    
+    assert_equal "get method not yet implemented", error.message
+    invocations = FakeShellRunner.invocations
+    assert_includes invocations, "op --version"
+    assert_includes invocations, "op whoami --format=json"
+    refute_includes invocations, "op signin test-account --raw --force"
+  end
+
+  def test_ensure_signed_in_when_not_authenticated_but_signin_succeeds
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: "", status: 1)
+    FakeShellRunner.define("op signin test-account --raw --force", stdout: "OPSESSIONTOKEN\n", status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    
+    error = assert_raises(NotImplementedError) do
+      client.get("some-item")
+    end
+    
+    assert_equal "get method not yet implemented", error.message
+    invocations = FakeShellRunner.invocations
+    assert_includes invocations, "op --version"
+    assert_includes invocations, "op whoami --format=json"
+    assert_includes invocations, "op signin test-account --raw --force"
+  end
+
+  def test_ensure_signed_in_when_not_authenticated_and_signin_fails
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: "", status: 1)
+    FakeShellRunner.define("op signin test-account --raw --force", stdout: "", status: 1)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    
+    error = assert_raises(RuntimeError) do
+      client.get("some-item")
+    end
+    
+    assert_equal "1Password sign-in failed", error.message
+    invocations = FakeShellRunner.invocations
+    assert_includes invocations, "op --version"
+    assert_includes invocations, "op whoami --format=json"
+    assert_includes invocations, "op signin test-account --raw --force"
+  end
 end
