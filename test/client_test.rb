@@ -99,10 +99,10 @@ class ClientTest < Minitest::Test
     end
     
     assert_equal "get method not yet implemented", error.message
-    invocations = FakeShellRunner.invocations.map { |inv| inv[:cmd] }
-    assert_includes invocations, "op --version"
-    assert_includes invocations, "op whoami --format=json"
-    refute_includes invocations, "op signin test-account --raw --force"
+    commands = FakeShellRunner.calls.map { |call| call[:cmd] }
+    assert_includes commands, "op --version"
+    assert_includes commands, "op whoami --format=json"
+    refute_includes commands, "op signin test-account --raw --force"
   end
 
   def test_ensure_signed_in_when_not_authenticated_but_signin_succeeds
@@ -117,10 +117,10 @@ class ClientTest < Minitest::Test
     end
     
     assert_equal "get method not yet implemented", error.message
-    invocations = FakeShellRunner.invocations.map { |inv| inv[:cmd] }
-    assert_includes invocations, "op --version"
-    assert_includes invocations, "op whoami --format=json"
-    assert_includes invocations, "op signin test-account --raw --force"
+    commands = FakeShellRunner.calls.map { |call| call[:cmd] }
+    assert_includes commands, "op --version"
+    assert_includes commands, "op whoami --format=json"
+    assert_includes commands, "op signin test-account --raw --force"
   end
 
   def test_ensure_signed_in_when_not_authenticated_and_signin_fails
@@ -135,10 +135,10 @@ class ClientTest < Minitest::Test
     end
     
     assert_equal "1Password sign-in failed", error.message
-    invocations = FakeShellRunner.invocations.map { |inv| inv[:cmd] }
-    assert_includes invocations, "op --version"
-    assert_includes invocations, "op whoami --format=json"
-    assert_includes invocations, "op signin test-account --raw --force"
+    commands = FakeShellRunner.calls.map { |call| call[:cmd] }
+    assert_includes commands, "op --version"
+    assert_includes commands, "op whoami --format=json"
+    assert_includes commands, "op signin test-account --raw --force"
   end
 
   def test_session_token_passed_to_whoami_after_signin
@@ -150,9 +150,9 @@ class ClientTest < Minitest::Test
     client.signin!
     client.whoami?
     
-    whoami_invocation = FakeShellRunner.find_invocation("op whoami --format=json")
-    refute_nil whoami_invocation
-    assert_equal({ "OP_SESSION_test-account" => "OPSESSIONTOKEN" }, whoami_invocation[:env])
+    whoami_call = FakeShellRunner.find_call("op whoami --format=json")
+    refute_nil whoami_call
+    assert_equal({ "OP_SESSION_test-account" => "OPSESSIONTOKEN" }, whoami_call[:env])
   end
 
   def test_account_short_handles_dots_correctly
@@ -164,9 +164,9 @@ class ClientTest < Minitest::Test
     client.signin!
     client.whoami?
     
-    whoami_invocation = FakeShellRunner.find_invocation("op whoami --format=json")
-    refute_nil whoami_invocation
-    assert_equal({ "OP_SESSION_my-team" => "OPSESSIONTOKEN" }, whoami_invocation[:env])
+    whoami_call = FakeShellRunner.find_call("op whoami --format=json")
+    refute_nil whoami_call
+    assert_equal({ "OP_SESSION_my-team" => "OPSESSIONTOKEN" }, whoami_call[:env])
   end
 
   def test_empty_env_when_no_token
@@ -176,8 +176,8 @@ class ClientTest < Minitest::Test
     client = Rbop::Client.new(account: "test-account", vault: "test-vault")
     client.whoami?
     
-    whoami_invocation = FakeShellRunner.find_invocation("op whoami --format=json")
-    refute_nil whoami_invocation
-    assert_equal({}, whoami_invocation[:env])
+    whoami_call = FakeShellRunner.find_call("op whoami --format=json")
+    refute_nil whoami_call
+    assert_equal({}, whoami_call[:env])
   end
 end

@@ -46,4 +46,22 @@ class FakeShellRunnerTest < Minitest::Test
     
     assert_equal '{"title": "Test Item"}', result
   end
+
+  def test_calls_and_last_call_helpers
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: '{"account":"test"}', status: 0)
+    
+    Rbop.shell_runner.run("op --version")
+    Rbop.shell_runner.run("op whoami --format=json", { "OP_SESSION_test" => "token123" })
+    
+    assert_equal 2, FakeShellRunner.calls.length
+    
+    last_call = FakeShellRunner.last_call
+    assert_equal "op whoami --format=json", last_call[:cmd]
+    assert_equal({ "OP_SESSION_test" => "token123" }, last_call[:env])
+    
+    first_call = FakeShellRunner.calls.first
+    assert_equal "op --version", first_call[:cmd]
+    assert_equal({}, first_call[:env])
+  end
 end
