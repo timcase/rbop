@@ -155,4 +155,114 @@ class ItemTest < Minitest::Test
     assert_equal "My Login", result2
     assert_same result1, result2  # Should be the same object due to caching
   end
+
+  def test_field_methods_provide_access_to_field_labels
+    hash = {
+      "title" => "My Login",
+      "fields" => [
+        { "label" => "password", "value" => "secret123" },
+        { "label" => "username", "value" => "user@example.com" },
+        { "label" => "Security Question", "value" => "What is your name?" }
+      ]
+    }
+    item = Rbop::Item.new(hash)
+    
+    assert_equal({ "label" => "password", "value" => "secret123" }, item.password)
+    assert_equal({ "label" => "username", "value" => "user@example.com" }, item.username)
+    assert_equal({ "label" => "Security Question", "value" => "What is your name?" }, item.security_question)
+  end
+
+  def test_field_collision_with_data_key_uses_field_prefix
+    hash = {
+      "password" => "top_level_password",  # This will collide
+      "fields" => [
+        { "label" => "password", "value" => "field_password_value" }
+      ]
+    }
+    item = Rbop::Item.new(hash)
+    
+    # Top-level key should be accessible normally
+    assert_equal "top_level_password", item.password
+    
+    # Field should be accessible with field_ prefix
+    assert_equal({ "label" => "password", "value" => "field_password_value" }, item.field_password)
+  end
+
+  def test_field_collision_with_ruby_method_uses_field_prefix
+    hash = {
+      "fields" => [
+        { "label" => "class", "value" => "some_class_value" },
+        { "label" => "object_id", "value" => "some_id_value" }
+      ]
+    }
+    item = Rbop::Item.new(hash)
+    
+    # Ruby methods should not be overridden
+    assert_instance_of Class, item.class
+    assert_instance_of Integer, item.object_id
+    
+    # Fields should be accessible with field_ prefix
+    assert_equal({ "label" => "class", "value" => "some_class_value" }, item.field_class)
+    assert_equal({ "label" => "object_id", "value" => "some_id_value" }, item.field_object_id)
+  end
+
+  def test_respond_to_missing_works_for_field_methods
+    hash = {
+      "fields" => [
+        { "label" => "password", "value" => "secret123" },
+        { "label" => "username", "value" => "user@example.com" }
+      ]
+    }
+    item = Rbop::Item.new(hash)
+    
+    assert item.respond_to?(:password)
+    assert item.respond_to?(:username)
+    assert item.respond_to?("password")
+    assert item.respond_to?("username")
+    refute item.respond_to?(:nonexistent_field)
+  end
+
+  def test_field_methods_handle_camel_case_labels
+    hash = {
+      "fields" => [
+        { "label" => "firstName", "value" => "John" },
+        { "label" => "lastName", "value" => "Doe" },
+        { "label" => "phoneNumber", "value" => "555-1234" }
+      ]
+    }
+    item = Rbop::Item.new(hash)
+    
+    assert_equal({ "label" => "firstName", "value" => "John" }, item.first_name)
+    assert_equal({ "label" => "lastName", "value" => "Doe" }, item.last_name)
+    assert_equal({ "label" => "phoneNumber", "value" => "555-1234" }, item.phone_number)
+  end
+
+  def test_field_methods_handle_missing_or_invalid_fields
+    hash = {
+      "fields" => [
+        { "label" => "valid_field", "value" => "valid_value" },
+        { "value" => "no_label" },  # Missing label
+        "invalid_field",  # Not a hash
+        nil  # Nil entry
+      ]
+    }
+    item = Rbop::Item.new(hash)
+    
+    # Only valid field should be accessible
+    assert_equal({ "label" => "valid_field", "value" => "valid_value" }, item.valid_field)
+    assert item.respond_to?(:valid_field)
+    
+    # Invalid fields should not create methods
+    refute item.respond_to?(:no_label)
+  end
+
+  def test_item_without_fields_array_works_normally
+    hash = { "title" => "My Login", "id" => "abc123" }
+    item = Rbop::Item.new(hash)
+    
+    assert_equal "My Login", item.title
+    assert_equal "abc123", item.id
+    assert item.respond_to?(:title)
+    assert item.respond_to?(:id)
+  end
 end
