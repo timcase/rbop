@@ -180,4 +180,59 @@ class ClientTest < Minitest::Test
     refute_nil whoami_call
     assert_equal({}, whoami_call[:env])
   end
+
+  def test_build_op_args_with_title_selector
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    selector = { type: :title, value: "My Login" }
+    
+    args = client.send(:build_op_args, selector)
+    
+    assert_equal ["item", "get", "My Login", "--vault", "test-vault"], args
+  end
+
+  def test_build_op_args_with_id_selector
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    selector = { type: :id, value: "abc123def456" }
+    
+    args = client.send(:build_op_args, selector)
+    
+    assert_equal ["item", "get", "--id", "abc123def456"], args
+  end
+
+  def test_build_op_args_with_share_url_selector
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    selector = { type: :url_share, value: "https://share.1password.com/s/abc123" }
+    
+    args = client.send(:build_op_args, selector)
+    
+    assert_equal ["item", "get", "--share-link", "https://share.1password.com/s/abc123"], args
+  end
+
+  def test_build_op_args_with_private_url_selector
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    selector = { type: :url_private, value: "https://my-team.1password.com/vaults/abc/allitems/def/open/i?ghi" }
+    
+    args = client.send(:build_op_args, selector)
+    
+    assert_equal ["item", "get", "--share-link", "https://my-team.1password.com/vaults/abc/allitems/def/open/i?ghi"], args
+  end
+
+  def test_build_op_args_with_vault_override
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "default-vault")
+    selector = { type: :title, value: "My Login" }
+    
+    args = client.send(:build_op_args, selector, "override-vault")
+    
+    assert_equal ["item", "get", "My Login", "--vault", "override-vault"], args
+  end
 end

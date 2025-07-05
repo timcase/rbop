@@ -10,7 +10,7 @@ module Rbop
       ensure_cli_present
     end
 
-    def get(item)
+    def get(item, vault: nil)
       ensure_signed_in
       raise NotImplementedError, "get method not yet implemented"
     end
@@ -34,6 +34,25 @@ module Rbop
 
     def ensure_signed_in
       signin! unless whoami?
+    end
+
+    def build_op_args(selector, vault_override = nil)
+      args = ["item", "get"]
+      
+      case selector[:type]
+      when :title
+        args << selector[:value]
+        args << "--vault"
+        args << (vault_override || @vault)
+      when :id
+        args << "--id"
+        args << selector[:value]
+      when :url_share, :url_private
+        args << "--share-link"
+        args << selector[:value]
+      end
+      
+      args
     end
 
     def build_env
