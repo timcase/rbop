@@ -222,6 +222,23 @@ class ItemTest < Minitest::Test
     refute item.respond_to?(:nonexistent_field)
   end
 
+  def test_respond_to_missing_works_for_collision_field_methods
+    hash = {
+      "password" => "top_level_password",  # This will cause collision
+      "fields" => [
+        { "label" => "password", "value" => "field_password_value" }
+      ]
+    }
+    item = Rbop::Item.new(hash)
+    
+    # Top-level password should be accessible
+    assert item.respond_to?(:password)
+    
+    # Field with collision should be accessible with field_ prefix
+    assert item.respond_to?(:field_password)
+    assert item.respond_to?("field_password")
+  end
+
   def test_field_methods_handle_camel_case_labels
     hash = {
       "fields" => [
