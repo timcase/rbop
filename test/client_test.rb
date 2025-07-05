@@ -33,16 +33,44 @@ class ClientTest < Minitest::Test
     assert_equal "1Password CLI (op) not found", error.message
   end
 
-  def test_get_raises_not_implemented_error
+  def test_get_with_title_returns_item_object
     FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: '{"account":"test-account"}', status: 0)
+    FakeShellRunner.define(/^op item get/, stdout: '{"id":"abc123","title":"My Login","vault":{"id":"vault123"}}', status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    item = client.get(title: "My Login")
+    
+    assert_instance_of Rbop::Item, item
+    assert_equal "abc123", item.raw["id"]
+    assert_equal "My Login", item.raw["title"]
+  end
+
+  def test_get_raises_json_parser_error_on_invalid_json
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: '{"account":"test-account"}', status: 0)
+    FakeShellRunner.define(/^op item get/, stdout: "invalid json response", status: 0)
     
     client = Rbop::Client.new(account: "test-account", vault: "test-vault")
     
-    error = assert_raises(NotImplementedError) do
-      client.get("some-item")
+    error = assert_raises(JSON::ParserError) do
+      client.get(title: "My Login")
     end
     
-    assert_equal "get method not yet implemented", error.message
+    assert_equal "Invalid JSON response from 1Password CLI", error.message
+  end
+
+  def test_get_calls_correct_op_command
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: '{"account":"test-account"}', status: 0)
+    FakeShellRunner.define(/^op item get/, stdout: '{"id":"abc123","title":"My Login"}', status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    client.get(title: "My Login")
+    
+    get_call = FakeShellRunner.find_call(/^op item get/)
+    refute_nil get_call
+    assert_equal "op item get My Login --vault test-vault --format json", get_call[:cmd]
   end
 
   def test_whoami_returns_true_when_authenticated
@@ -94,11 +122,11 @@ class ClientTest < Minitest::Test
     
     client = Rbop::Client.new(account: "test-account", vault: "test-vault")
     
-    error = assert_raises(NotImplementedError) do
-      client.get("some-item")
+    error = assert_raises(ArgumentError) do
+      client.get
     end
     
-    assert_equal "get method not yet implemented", error.message
+    assert_equal "Must provide one of: title:, id:, or url:", error.message
     commands = FakeShellRunner.calls.map { |call| call[:cmd] }
     assert_includes commands, "op --version"
     assert_includes commands, "op whoami --format=json"
@@ -112,11 +140,11 @@ class ClientTest < Minitest::Test
     
     client = Rbop::Client.new(account: "test-account", vault: "test-vault")
     
-    error = assert_raises(NotImplementedError) do
-      client.get("some-item")
+    error = assert_raises(ArgumentError) do
+      client.get
     end
     
-    assert_equal "get method not yet implemented", error.message
+    assert_equal "Must provide one of: title:, id:, or url:", error.message
     commands = FakeShellRunner.calls.map { |call| call[:cmd] }
     assert_includes commands, "op --version"
     assert_includes commands, "op whoami --format=json"
@@ -131,7 +159,7 @@ class ClientTest < Minitest::Test
     client = Rbop::Client.new(account: "test-account", vault: "test-vault")
     
     error = assert_raises(RuntimeError) do
-      client.get("some-item")
+      client.get(title: "some-item")
     end
     
     assert_equal "1Password sign-in failed", error.message

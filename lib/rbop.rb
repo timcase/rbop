@@ -4,6 +4,7 @@ require_relative "rbop/version"
 require_relative "rbop/shell"
 require_relative "rbop/client"
 require_relative "rbop/selector"
+require_relative "rbop/item"
 
 module Rbop
   class Error < StandardError; end

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "json"
+
 module Rbop
   class Client
     attr_reader :account, :vault, :token
@@ -10,9 +12,26 @@ module Rbop
       ensure_cli_present
     end
 
-    def get(item, vault: nil)
+    def get(title: nil, id: nil, url: nil, vault: nil)
       ensure_signed_in
-      raise NotImplementedError, "get method not yet implemented"
+      
+      # Build kwargs hash with only non-nil values
+      kwargs = {}
+      kwargs[:title] = title if title
+      kwargs[:id] = id if id
+      kwargs[:url] = url if url
+      
+      selector = Rbop::Selector.parse(**kwargs)
+      args = build_op_args(selector, vault)
+      args += ["--format", "json"]
+      
+      cmd = (["op"] + args).join(" ")
+      stdout = Rbop.shell_runner.run(cmd, build_env)
+      raw_hash = JSON.parse(stdout)
+      
+      Rbop::Item.new(raw_hash)
+    rescue JSON::ParserError
+      raise JSON::ParserError, "Invalid JSON response from 1Password CLI"
     end
 
     def whoami?
