@@ -1,10 +1,14 @@
 # frozen_string_literal: true
 
 require "active_support/inflector"
+require "time"
 
 module Rbop
   class Item
     attr_reader :raw
+    
+    # ISO-8601 datetime pattern
+    ISO_8601_REGEX = /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})\z/
 
     def initialize(raw_hash)
       @raw = raw_hash
@@ -21,19 +25,32 @@ module Rbop
     alias_method :as_json, :to_h
 
     def [](key)
-      @data[key.to_s]
+      key_str = key.to_s
+      return @memo[:"[#{key_str}]"] if @memo.key?(:"[#{key_str}]")
+      
+      value = @data[key_str]
+      @memo[:"[#{key_str}]"] = cast_value(key_str, value)
     end
 
     def method_missing(method_name, *args, &block)
       if args.empty? && !block_given?
+        method_str = method_name.to_s
+        
         # Check for field methods first
-        if field_info = @field_methods[method_name.to_s]
-          return @memo[method_name] ||= field_info[:field]
+        if field_info = @field_methods[method_str]
+          field = field_info[:field]
+          # For field methods, we want to cast the field's value if it has one
+          if field.is_a?(Hash) && field.key?("value")
+            field = field.dup
+            field["value"] = cast_value(field_info[:label], field["value"])
+          end
+          return @memo[method_name] ||= field
         end
         
         # Check for top-level data keys
-        if @data.key?(method_name.to_s)
-          return @memo[method_name] ||= @data[method_name.to_s]
+        if @data.key?(method_str)
+          value = @data[method_str]
+          return @memo[method_name] ||= cast_value(method_str, value)
         end
       end
       
@@ -45,6 +62,21 @@ module Rbop
     end
 
     private
+
+    def cast_value(key, value)
+      return value unless value.is_a?(String)
+      
+      # Cast if key ends with _at or value matches ISO-8601 pattern
+      if key.to_s.end_with?('_at') || value.match?(ISO_8601_REGEX)
+        begin
+          Time.parse(value)
+        rescue ArgumentError
+          value  # Return original value if parsing fails
+        end
+      else
+        value
+      end
+    end
 
     def build_field_methods
       fields = @data["fields"]

@@ -265,4 +265,103 @@ class ItemTest < Minitest::Test
     assert item.respond_to?(:title)
     assert item.respond_to?(:id)
   end
+
+  def test_timestamp_casting_for_keys_ending_with_at
+    hash = {
+      "created_at" => "2023-12-01T10:30:00Z",
+      "updated_at" => "2023-12-02T15:45:30+05:00",
+      "deleted_at" => "2023-12-03T20:15:45.123Z"
+    }
+    item = Rbop::Item.new(hash)
+    
+    assert_instance_of Time, item.created_at
+    assert_instance_of Time, item.updated_at
+    assert_instance_of Time, item.deleted_at
+    
+    assert_equal "2023-12-01T10:30:00Z", item.created_at.iso8601
+    assert_equal "2023-12-02T15:45:30+05:00", item.updated_at.iso8601
+  end
+
+  def test_timestamp_casting_for_iso_8601_values
+    hash = {
+      "some_date" => "2023-12-01T10:30:00Z",
+      "another_field" => "2023-12-02T15:45:30.456+02:00",
+      "not_a_date" => "just a string"
+    }
+    item = Rbop::Item.new(hash)
+    
+    assert_instance_of Time, item.some_date
+    assert_instance_of Time, item.another_field
+    assert_equal "just a string", item.not_a_date
+  end
+
+  def test_timestamp_casting_with_bracket_access
+    hash = {
+      "created_at" => "2023-12-01T10:30:00Z",
+      "some_date" => "2023-12-02T15:45:30Z",
+      "normal_field" => "regular value"
+    }
+    item = Rbop::Item.new(hash)
+    
+    assert_instance_of Time, item["created_at"]
+    assert_instance_of Time, item[:some_date]
+    assert_equal "regular value", item["normal_field"]
+  end
+
+  def test_field_timestamp_casting
+    hash = {
+      "fields" => [
+        { "label" => "lastEditedAt", "value" => "2023-12-01T10:30:00Z" },
+        { "label" => "createdDate", "value" => "2023-12-02T15:45:30Z" },
+        { "label" => "normalField", "value" => "regular value" }
+      ]
+    }
+    item = Rbop::Item.new(hash)
+    
+    # Field methods should cast timestamp values
+    last_edited_field = item.last_edited_at
+    assert_instance_of Time, last_edited_field["value"]
+    
+    created_date_field = item.created_date
+    assert_instance_of Time, created_date_field["value"]
+    
+    normal_field = item.normal_field
+    assert_equal "regular value", normal_field["value"]
+  end
+
+  def test_timestamp_casting_memoization
+    hash = { "created_at" => "2023-12-01T10:30:00Z" }
+    item = Rbop::Item.new(hash)
+    
+    time1 = item.created_at
+    time2 = item.created_at
+    
+    assert_instance_of Time, time1
+    assert_same time1, time2  # Should be the same object due to memoization
+  end
+
+  def test_invalid_timestamp_returns_original_value
+    hash = {
+      "created_at" => "invalid-date-string",
+      "some_field" => "2023-13-45T99:99:99Z"  # Invalid date
+    }
+    item = Rbop::Item.new(hash)
+    
+    # Should return original strings when parsing fails
+    assert_equal "invalid-date-string", item.created_at
+    assert_equal "2023-13-45T99:99:99Z", item.some_field
+  end
+
+  def test_non_string_values_not_cast
+    hash = {
+      "created_at" => 1234567890,  # Integer timestamp
+      "updated_at" => nil,
+      "deleted_at" => { "nested" => "object" }
+    }
+    item = Rbop::Item.new(hash)
+    
+    assert_equal 1234567890, item.created_at
+    assert_nil item.updated_at
+    assert_equal({ "nested" => "object" }, item.deleted_at)
+  end
 end
