@@ -44,6 +44,11 @@ class ClientTest < Minitest::Test
     assert_instance_of Rbop::Item, item
     assert_equal "abc123", item.raw["id"]
     assert_equal "My Login", item.raw["title"]
+    
+    # Verify Item integration works correctly
+    assert_equal "My Login", item.to_h["title"]
+    assert_equal "abc123", item["id"]
+    assert_equal "vault123", item["vault"]["id"]
   end
 
   def test_get_raises_json_parser_error_on_invalid_json
@@ -71,6 +76,34 @@ class ClientTest < Minitest::Test
     get_call = FakeShellRunner.find_call(/^op item get/)
     refute_nil get_call
     assert_equal "op item get My Login --vault test-vault --format json", get_call[:cmd]
+  end
+
+  def test_get_with_id_selector_returns_item_object
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: '{"account":"test-account"}', status: 0)
+    FakeShellRunner.define(/^op item get/, stdout: '{"id":"abc123","title":"Bank Account","category":"LOGIN"}', status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    item = client.get(id: "abc123")
+    
+    assert_instance_of Rbop::Item, item
+    assert_equal "abc123", item["id"]
+    assert_equal "Bank Account", item.to_h["title"]
+    assert_equal "LOGIN", item["category"]
+  end
+
+  def test_get_with_url_selector_returns_item_object
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: '{"account":"test-account"}', status: 0)
+    FakeShellRunner.define(/^op item get/, stdout: '{"id":"def456","title":"Shared Item","urls":[{"href":"https://example.com"}]}', status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    item = client.get(url: "https://share.1password.com/s/abc123def456")
+    
+    assert_instance_of Rbop::Item, item
+    assert_equal "def456", item["id"]
+    assert_equal "Shared Item", item.to_h["title"]
+    assert_equal "https://example.com", item["urls"][0]["href"]
   end
 
   def test_whoami_returns_true_when_authenticated
