@@ -7,6 +7,7 @@ module Rbop
     def initialize(raw_hash)
       @raw = raw_hash
       @data = deep_dup(raw_hash)
+      @memo = {}
     end
 
     def to_h
@@ -17,6 +18,18 @@ module Rbop
 
     def [](key)
       @data[key.to_s]
+    end
+
+    def method_missing(method_name, *args, &block)
+      if args.empty? && !block_given? && @data.key?(method_name.to_s)
+        @memo[method_name] ||= @data[method_name.to_s]
+      else
+        super
+      end
+    end
+
+    def respond_to_missing?(method_name, include_private = false)
+      @data.key?(method_name.to_s) || super
     end
 
     private
