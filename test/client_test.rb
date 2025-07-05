@@ -77,7 +77,7 @@ class ClientTest < Minitest::Test
 
     get_call = FakeShellRunner.find_call(/^op item get/)
     refute_nil get_call
-    expected_cmd = ["op", "item", "get", "My Login", "--vault", "test-vault", "--format", "json", "--account", "test-account"]
+    expected_cmd = [ "op", "item", "get", "My Login", "--vault", "test-vault", "--format", "json", "--account", "test-account" ]
     assert_equal expected_cmd, get_call[:cmd]
   end
 
@@ -111,7 +111,7 @@ class ClientTest < Minitest::Test
 
   def test_whoami_returns_true_when_authenticated
     FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
-    FakeShellRunner.define("op whoami --format=json --account test-account", 
+    FakeShellRunner.define("op whoami --format=json --account test-account",
                           stdout: '{"user_uuid":"test-uuid","account_uuid":"account-uuid"}', status: 0)
 
     client = Rbop::Client.new(account: "test-account", vault: "test-vault")
@@ -131,7 +131,7 @@ class ClientTest < Minitest::Test
   def test_signin_success_returns_true_and_sets_token
     FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
     FakeShellRunner.define("op signin --account test-account --raw", stdout: "OPSESSIONTOKEN\n", status: 0)
-    FakeShellRunner.define("op whoami --format=json --account test-account --session OPSESSIONTOKEN", 
+    FakeShellRunner.define("op whoami --format=json --account test-account --session OPSESSIONTOKEN",
                           stdout: '{"user_uuid":"test-uuid","account_uuid":"account-uuid"}', status: 0)
 
     client = Rbop::Client.new(account: "test-account", vault: "test-vault")
@@ -175,11 +175,11 @@ class ClientTest < Minitest::Test
     FakeShellRunner.define(/op item get.*My Login/, stdout: "", status: 1)
     # Signin succeeds
     FakeShellRunner.define("op signin --account test-account --raw", stdout: "OPSESSIONTOKEN\n", status: 0)
-    FakeShellRunner.define("op whoami --format=json --account test-account --session OPSESSIONTOKEN", 
+    FakeShellRunner.define("op whoami --format=json --account test-account --session OPSESSIONTOKEN",
                           stdout: '{"user_uuid":"test-uuid","account_uuid":"account-uuid"}', status: 0)
 
     client = Rbop::Client.new(account: "test-account", vault: "test-vault")
-    
+
     # This should fail because signin succeeds but retry will still fail
     assert_raises(Rbop::Shell::CommandFailed) do
       client.get(title: "My Login")
@@ -213,7 +213,7 @@ class ClientTest < Minitest::Test
   def test_session_token_set_in_environment_after_signin
     FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
     FakeShellRunner.define("op signin --account test-account --raw", stdout: "OPSESSIONTOKEN\n", status: 0)
-    FakeShellRunner.define("op whoami --format=json --account test-account --session OPSESSIONTOKEN", 
+    FakeShellRunner.define("op whoami --format=json --account test-account --session OPSESSIONTOKEN",
                           stdout: '{"user_uuid":"test-uuid","account_uuid":"account-uuid"}', status: 0)
 
     client = Rbop::Client.new(account: "test-account", vault: "test-vault")
@@ -226,7 +226,7 @@ class ClientTest < Minitest::Test
   def test_account_with_dots_signin_works
     FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
     FakeShellRunner.define("op signin --account my-team.1password.com --raw", stdout: "OPSESSIONTOKEN\n", status: 0)
-    FakeShellRunner.define("op whoami --format=json --account my-team.1password.com --session OPSESSIONTOKEN", 
+    FakeShellRunner.define("op whoami --format=json --account my-team.1password.com --session OPSESSIONTOKEN",
                           stdout: '{"user_uuid":"my-team-uuid","account_uuid":"account-uuid"}', status: 0)
 
     client = Rbop::Client.new(account: "my-team.1password.com", vault: "test-vault")
@@ -256,7 +256,7 @@ class ClientTest < Minitest::Test
 
     args = client.send(:build_op_args, selector)
 
-    assert_equal ["item", "get", "My Login", "--vault", "test-vault"], args
+    assert_equal [ "item", "get", "My Login", "--vault", "test-vault" ], args
   end
 
   def test_build_op_args_with_id_selector
@@ -267,7 +267,7 @@ class ClientTest < Minitest::Test
 
     args = client.send(:build_op_args, selector)
 
-    assert_equal ["item", "get", "--id", "abc123def456"], args
+    assert_equal [ "item", "get", "--id", "abc123def456" ], args
   end
 
   def test_build_op_args_with_share_url_selector
@@ -278,7 +278,7 @@ class ClientTest < Minitest::Test
 
     args = client.send(:build_op_args, selector)
 
-    assert_equal ["item", "get", "--share-link", "https://share.1password.com/s/abc123"], args
+    assert_equal [ "item", "get", "--share-link", "https://share.1password.com/s/abc123" ], args
   end
 
   def test_build_op_args_with_private_url_selector
@@ -289,7 +289,7 @@ class ClientTest < Minitest::Test
 
     args = client.send(:build_op_args, selector)
 
-    assert_equal ["item", "get", "--share-link", "https://my-team.1password.com/vaults/abc/allitems/def/open/i?ghi"], args
+    assert_equal [ "item", "get", "--share-link", "https://my-team.1password.com/vaults/abc/allitems/def/open/i?ghi" ], args
   end
 
   def test_build_op_args_with_vault_override
@@ -300,6 +300,6 @@ class ClientTest < Minitest::Test
 
     args = client.send(:build_op_args, selector, "override-vault")
 
-    assert_equal ["item", "get", "My Login", "--vault", "override-vault"], args
+    assert_equal [ "item", "get", "My Login", "--vault", "override-vault" ], args
   end
 end

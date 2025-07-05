@@ -19,7 +19,7 @@ It shells out to the official op CLI, performs an interactive sign-in when neede
   spec.require_paths = [ "lib" ]
 
   spec.add_dependency "activesupport"
-  
+
   spec.add_development_dependency "minitest"
   spec.add_development_dependency "mocha"
   spec.add_development_dependency "factory_bot"

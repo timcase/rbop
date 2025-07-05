@@ -21,11 +21,11 @@ module Rbop
 
       selector = Rbop::Selector.parse(**kwargs)
       args = build_op_args(selector, vault)
-      args += ["--format", "json"]
-      args += ["--account", @account]
+      args += [ "--format", "json" ]
+      args += [ "--account", @account ]
 
-      cmd = ["op"] + args
-      
+      cmd = [ "op" ] + args
+
       begin
         stdout, _status = Rbop.shell_runner.run(cmd)
       rescue Rbop::Shell::CommandFailed
@@ -34,7 +34,7 @@ module Rbop
         signin!
         stdout, _status = Rbop.shell_runner.run(cmd)
       end
-      
+
       raw_hash = JSON.parse(stdout)
       Rbop::Item.new(raw_hash)
     rescue JSON::ParserError
@@ -45,7 +45,7 @@ module Rbop
       cmd = "op whoami --format=json"
       cmd += " --account #{@account}" if @account
       stdout, _status = Rbop.shell_runner.run(cmd)
-      
+
       # Parse the response to ensure it's valid
       data = JSON.parse(stdout)
       !!(data["user_uuid"] && data["account_uuid"])
@@ -58,16 +58,16 @@ module Rbop
       # Get the session token
       stdout, _status = Rbop.shell_runner.run("op signin --account #{@account} --raw")
       session_token = stdout.strip
-      
+
       # Set the session token in the environment using the session token itself
       # The op whoami command with the session token will tell us the user UUID
       whoami_stdout, _ = Rbop.shell_runner.run("op whoami --format=json --account #{@account} --session #{session_token}")
       whoami_data = JSON.parse(whoami_stdout)
       user_uuid = whoami_data["user_uuid"]
-      
+
       # Set the session token in the correct environment variable
       ENV["OP_SESSION_#{user_uuid}"] = session_token
-      
+
       true
     rescue Rbop::Shell::CommandFailed, JSON::ParserError
       raise RuntimeError, "1Password sign-in failed"
@@ -81,7 +81,7 @@ module Rbop
     end
 
     def build_op_args(selector, vault_override = nil)
-      args = ["item", "get"]
+      args = [ "item", "get" ]
 
       case selector[:type]
       when :title

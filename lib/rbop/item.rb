@@ -7,7 +7,7 @@ require "set"
 module Rbop
   class Item
     attr_reader :raw
-    
+
     # ISO-8601 datetime pattern
     ISO_8601_REGEX = /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})\z/
 
@@ -28,7 +28,7 @@ module Rbop
     def [](key)
       key_str = key.to_s
       return @memo[:"[#{key_str}]"] if @memo.key?(:"[#{key_str}]")
-      
+
       value = @data[key_str]
       @memo[:"[#{key_str}]"] = cast_value(key_str, value)
     end
@@ -36,7 +36,7 @@ module Rbop
     def method_missing(method_name, *args, &block)
       if args.empty? && !block_given?
         method_str = method_name.to_s
-        
+
         # Check for field methods first
         if field_info = @field_methods[method_str]
           field = field_info[:field]
@@ -48,14 +48,14 @@ module Rbop
             return @memo[method_name] ||= field
           end
         end
-        
+
         # Check for top-level data keys
         if @data.key?(method_str)
           value = @data[method_str]
           return @memo[method_name] ||= cast_value(method_str, value)
         end
       end
-      
+
       super
     end
 
@@ -67,9 +67,9 @@ module Rbop
 
     def cast_value(key, value)
       return value unless value.is_a?(String)
-      
+
       # Cast if key ends with _at or value matches ISO-8601 pattern
-      if key.to_s.end_with?('_at') || value.match?(ISO_8601_REGEX)
+      if key.to_s.end_with?("_at") || value.match?(ISO_8601_REGEX)
         begin
           Time.parse(value)
         rescue ArgumentError
@@ -83,20 +83,20 @@ module Rbop
     def build_field_methods
       fields = @data["fields"]
       return unless fields.is_a?(Array)
-      
+
       used_method_names = Set.new
 
       fields.each do |field|
         next unless field.is_a?(Hash) && field["label"]
-        
+
         label = field["label"]
-        base_method_name = ActiveSupport::Inflector.underscore(label.gsub(/\s+/, '_'))
+        base_method_name = ActiveSupport::Inflector.underscore(label.gsub(/\s+/, "_"))
         method_name = base_method_name
-        
+
         # Check if method name is already used or has collision
         if used_method_names.include?(method_name) || has_collision?(method_name)
           method_name = "field_#{base_method_name}"
-          
+
           # Handle collision enumeration for field_ prefixed names
           counter = 2
           while used_method_names.include?(method_name)
@@ -104,7 +104,7 @@ module Rbop
             counter += 1
           end
         end
-        
+
         used_method_names.add(method_name)
         @field_methods[method_name] = { field: field, label: label }
       end

@@ -123,7 +123,7 @@ class TestShell < Minitest::Test
   end
 
   def test_array_command_joins_correctly
-    stdout, status = Rbop::Shell.run(["echo", "hello", "world"])
+    stdout, status = Rbop::Shell.run([ "echo", "hello", "world" ])
 
     assert_equal "hello world\n", stdout
     assert_equal 0, status
@@ -250,5 +250,14 @@ class TestShell < Minitest::Test
     ensure
       $stderr = original_stderr
     end
+  end
+
+  def test_command_failed_with_output
+    exception = assert_raises(Rbop::Shell::CommandFailed) do
+      Rbop::Shell.run("echo 'error message' && exit 1")
+    end
+
+    assert_equal 1, exception.status
+    assert_match(/error message/, exception.command)
   end
 end

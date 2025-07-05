@@ -8,7 +8,7 @@ class ItemTest < Minitest::Test
       "id" => "abc123",
       "title" => "My Login",
       "vault" => { "id" => "vault123" },
-      "fields" => [{ "id" => "field1", "value" => "secret" }]
+      "fields" => [ { "id" => "field1", "value" => "secret" } ]
     }
 
     item = Rbop::Item.new(original_hash)
@@ -59,7 +59,7 @@ class ItemTest < Minitest::Test
     hash = {
       "level1" => {
         "level2" => {
-          "level3" => ["item1", "item2"]
+          "level3" => [ "item1", "item2" ]
         }
       }
     }
@@ -254,7 +254,7 @@ class ItemTest < Minitest::Test
       "last_modified_time" => "2023-12-20T09:15:45+05:00",
       "password" => "top_level_password_value",  # Will cause collision with field
       "class" => "top_level_class_value",       # Will cause collision with Ruby method
-      "tags" => ["work", "important"],
+      "tags" => [ "work", "important" ],
       "fields" => [
         # Basic field methods
         { "label" => "username", "value" => "john.doe@example.com" },
@@ -295,7 +295,7 @@ class ItemTest < Minitest::Test
     assert_equal "My Secure Login", item.title
     assert_equal "LOGIN", item.category
     assert_equal({ "id" => "vault_def456", "name" => "Personal" }, item.vault)
-    assert_equal ["work", "important"], item.tags
+    assert_equal [ "work", "important" ], item.tags
 
     # Test timestamp casting for top-level keys
     assert_instance_of Time, item.created_at

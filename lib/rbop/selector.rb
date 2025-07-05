@@ -5,7 +5,7 @@ module Rbop
     class << self
       def parse(**kwargs)
         validate_arguments!(kwargs)
-        
+
         case kwargs.keys.first
         when :title
           { type: :title, value: kwargs[:title] }
@@ -27,7 +27,7 @@ module Rbop
           raise ArgumentError, "Must provide exactly one of: title:, id:, or url:"
         end
 
-        unless [:title, :id, :url].include?(kwargs.keys.first)
+        unless [ :title, :id, :url ].include?(kwargs.keys.first)
           raise ArgumentError, "Must provide one of: title:, id:, or url:"
         end
       end
