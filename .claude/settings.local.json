@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(bundle exec rake:*)"
+      "Bash(bundle exec rake:*)",
+      "Bash(chmod:*)",
+      "Bash(./bin/console)",
+      "Bash(op signin:*)",
+      "Bash(gem list:*)",
+      "Bash(bundle show:*)",
+      "Bash(rake install)",
+      "Bash(op signout:*)"
     ],
     "deny": []
   }

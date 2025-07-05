@@ -40,12 +40,13 @@ module Rbop
         # Check for field methods first
         if field_info = @field_methods[method_str]
           field = field_info[:field]
-          # For field methods, we want to cast the field's value if it has one
+          # For field methods, we want to return just the value, not the entire field structure
           if field.is_a?(Hash) && field.key?("value")
-            field = field.dup
-            field["value"] = cast_value(field_info[:label], field["value"])
+            value = field["value"]
+            return @memo[method_name] ||= cast_value(field_info[:label], value)
+          else
+            return @memo[method_name] ||= field
           end
-          return @memo[method_name] ||= field
         end
         
         # Check for top-level data keys

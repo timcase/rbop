@@ -4,7 +4,7 @@ require "json"
 
 module Rbop
   class Client
-    attr_reader :account, :vault, :token
+    attr_reader :account, :vault
 
     def initialize(account:, vault:)
       @account = account
@@ -13,8 +13,6 @@ module Rbop
     end
 
     def get(title: nil, id: nil, url: nil, vault: nil)
-      ensure_signed_in
-
       # Build kwargs hash with only non-nil values
       kwargs = {}
       kwargs[:title] = title if title
@@ -24,35 +22,62 @@ module Rbop
       selector = Rbop::Selector.parse(**kwargs)
       args = build_op_args(selector, vault)
       args += ["--format", "json"]
+      args += ["--account", @account]
 
-      cmd = (["op"] + args).join(" ")
-      stdout = Rbop.shell_runner.run(cmd, build_env)
+      cmd = ["op"] + args
+      
+      begin
+        stdout, _status = Rbop.shell_runner.run(cmd)
+      rescue Rbop::Shell::CommandFailed
+        # If the command failed, assume it's an authentication error and try signing in
+        puts "[DEBUG] Command failed, attempting signin..." if Rbop.debug
+        signin!
+        stdout, _status = Rbop.shell_runner.run(cmd)
+      end
+      
       raw_hash = JSON.parse(stdout)
-
       Rbop::Item.new(raw_hash)
     rescue JSON::ParserError
       raise JSON::ParserError, "Invalid JSON response from 1Password CLI"
     end
 
     def whoami?
-      Rbop.shell_runner.run("op whoami --format=json", build_env)
-      true
-    rescue Rbop::Shell::CommandFailed
+      cmd = "op whoami --format=json"
+      cmd += " --account #{@account}" if @account
+      stdout, _status = Rbop.shell_runner.run(cmd)
+      
+      # Parse the response to ensure it's valid
+      data = JSON.parse(stdout)
+      !!(data["user_uuid"] && data["account_uuid"])
+    rescue Rbop::Shell::CommandFailed, JSON::ParserError
       false
     end
 
+
     def signin!
-      stdout = Rbop.shell_runner.run("op signin --account #{@account} --raw --force")
-      @token = stdout.strip
+      # Get the session token
+      stdout, _status = Rbop.shell_runner.run("op signin --account #{@account} --raw")
+      session_token = stdout.strip
+      
+      # Set the session token in the environment using the session token itself
+      # The op whoami command with the session token will tell us the user UUID
+      whoami_stdout, _ = Rbop.shell_runner.run("op whoami --format=json --account #{@account} --session #{session_token}")
+      whoami_data = JSON.parse(whoami_stdout)
+      user_uuid = whoami_data["user_uuid"]
+      
+      # Set the session token in the correct environment variable
+      ENV["OP_SESSION_#{user_uuid}"] = session_token
+      
       true
-    rescue Rbop::Shell::CommandFailed
+    rescue Rbop::Shell::CommandFailed, JSON::ParserError
       raise RuntimeError, "1Password sign-in failed"
     end
 
     private
 
     def ensure_signed_in
-      signin! unless whoami?
+      return if whoami?
+      signin!
     end
 
     def build_op_args(selector, vault_override = nil)
@@ -74,15 +99,8 @@ module Rbop
       args
     end
 
-    def build_env
-      return {} unless @token
-
-      account_short = @account.split('.').first
-      { "OP_SESSION_#{account_short}" => @token }
-    end
-
     def ensure_cli_present
-      Rbop.shell_runner.run("op --version")
+      _stdout, _status = Rbop.shell_runner.run("op --version")
     rescue Rbop::Shell::CommandFailed
       raise RuntimeError, "1Password CLI (op) not found"
     end

@@ -16,9 +16,10 @@ class FakeShellRunnerTest < Minitest::Test
   def test_defined_command_returns_expected_stdout
     FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
     
-    result = Rbop.shell_runner.run("op --version")
+    stdout, status = Rbop.shell_runner.run("op --version")
     
-    assert_equal "2.25.0\n", result
+    assert_equal "2.25.0\n", stdout
+    assert_equal 0, status
   end
 
   def test_defined_command_with_non_zero_status_raises_error
@@ -34,17 +35,19 @@ class FakeShellRunnerTest < Minitest::Test
   end
 
   def test_undefined_command_returns_empty_string
-    result = Rbop.shell_runner.run("undefined command")
+    stdout, status = Rbop.shell_runner.run("undefined command")
     
-    assert_equal "", result
+    assert_equal "", stdout
+    assert_equal 0, status
   end
 
   def test_pattern_matching_with_regex
     FakeShellRunner.define(/^op item get/, stdout: '{"title": "Test Item"}', status: 0)
     
-    result = Rbop.shell_runner.run("op item get 12345")
+    stdout, status = Rbop.shell_runner.run("op item get 12345")
     
-    assert_equal '{"title": "Test Item"}', result
+    assert_equal '{"title": "Test Item"}', stdout
+    assert_equal 0, status
   end
 
   def test_calls_and_last_call_helpers

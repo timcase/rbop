@@ -24,19 +24,39 @@ module Rbop
     def run(cmd, env = {})
       cmd_string = cmd.is_a?(Array) ? cmd.join(" ") : cmd
 
+      # Log command execution if debug mode is enabled
+      if Rbop.debug
+        $stderr.puts "[RBOP DEBUG] Executing: #{cmd_string}"
+        $stderr.puts "[RBOP DEBUG] Environment: #{env.inspect}" unless env.empty?
+      end
+
       # Merge env into current ENV for the command
       if env.empty?
         stdout = `#{cmd_string}`
       else
         # Use bash -c to ensure variable expansion works properly
         env_string = env.map { |k, v| "#{k}='#{v}'" }.join(" ")
-        stdout = `#{env_string} bash -c '#{cmd_string}'`
+        full_cmd = "#{env_string} bash -c '#{cmd_string}'"
+        $stderr.puts "[RBOP DEBUG] Full command: #{full_cmd}" if Rbop.debug
+        stdout = `#{full_cmd}`
       end
 
       status = $?.exitstatus
 
+      # Log results if debug mode is enabled
+      if Rbop.debug
+        $stderr.puts "[RBOP DEBUG] Exit status: #{status}"
+        if stdout.length > 200
+          $stderr.puts "[RBOP DEBUG] Output (truncated): #{stdout[0..200]}..."
+        else
+          $stderr.puts "[RBOP DEBUG] Output: #{stdout}"
+        end
+      end
+
       if status != 0
-        raise CommandFailed.new(cmd_string, status)
+        # For authentication errors, include stderr/stdout in the exception
+        error_output = stdout.empty? ? "" : ": #{stdout}"
+        raise CommandFailed.new("#{cmd_string}#{error_output}", status)
       end
 
       [ stdout, status ]
