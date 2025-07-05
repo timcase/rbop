@@ -26,6 +26,7 @@ GEM
     concurrent-ruby (1.3.5)
     connection_pool (2.5.3)
     date (3.4.1)
+    docile (1.4.1)
     dotenv (3.1.8)
     drb (2.2.3)
     erb (5.0.1)
@@ -97,6 +98,12 @@ GEM
     ruby-progressbar (1.13.0)
     ruby2_keywords (0.0.5)
     securerandom (0.4.1)
+    simplecov (0.22.0)
+      docile (~> 1.1)
+      simplecov-html (~> 0.11)
+      simplecov_json_formatter (~> 0.1)
+    simplecov-html (0.13.1)
+    simplecov_json_formatter (0.1.4)
     stringio (3.1.7)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
@@ -119,6 +126,7 @@ DEPENDENCIES
   rbop!
   rubocop
   rubocop-rails-omakase
+  simplecov
 
 BUNDLED WITH
    2.6.9

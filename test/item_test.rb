@@ -239,6 +239,140 @@ class ItemTest < Minitest::Test
     assert item.respond_to?("field_password")
   end
 
+  def test_comprehensive_item_functionality
+    # Comprehensive fixture JSON covering all scenarios
+    fixture_hash = {
+      "id" => "item_abc123",
+      "title" => "My Secure Login",
+      "category" => "LOGIN",
+      "vault" => {
+        "id" => "vault_def456",
+        "name" => "Personal"
+      },
+      "created_at" => "2023-12-01T10:30:00Z",
+      "updated_at" => "2023-12-15T14:45:30.123Z",
+      "last_modified_time" => "2023-12-20T09:15:45+05:00",
+      "password" => "top_level_password_value",  # Will cause collision with field
+      "class" => "top_level_class_value",       # Will cause collision with Ruby method
+      "tags" => ["work", "important"],
+      "fields" => [
+        # Basic field methods
+        { "label" => "username", "value" => "john.doe@example.com" },
+        { "label" => "url", "value" => "https://example.com/login" },
+        
+        # Timestamp casting in fields
+        { "label" => "lastLoginAt", "value" => "2023-12-25T12:00:00Z" },
+        { "label" => "expiryDate", "value" => "2024-06-01T00:00:00Z" },
+        { "label" => "normalField", "value" => "just a string" },
+        
+        # CamelCase to snake_case conversion
+        { "label" => "firstName", "value" => "John" },
+        { "label" => "lastName", "value" => "Doe" },
+        { "label" => "phoneNumber", "value" => "555-1234" },
+        
+        # Space handling
+        { "label" => "Security Question", "value" => "What is your favorite color?" },
+        { "label" => "Recovery Email", "value" => "recovery@example.com" },
+        
+        # Collision scenarios
+        { "label" => "password", "value" => "field_password_value" },  # Collides with top-level key
+        { "label" => "class", "value" => "first_class_field" },        # Collides with Ruby method
+        { "label" => "class", "value" => "second_class_field" },       # Numeric suffix needed
+        { "label" => "class", "value" => "third_class_field" },        # _3 suffix needed
+        
+        # Invalid field entries (should be ignored)
+        { "value" => "no_label_field" },  # Missing label
+        "invalid_string_field",           # Not a hash
+        nil,                              # Nil entry
+        { "label" => "", "value" => "empty_label" }  # Empty label
+      ]
+    }
+    
+    item = Rbop::Item.new(fixture_hash)
+    
+    # Test key methods (top-level data access)
+    assert_equal "item_abc123", item.id
+    assert_equal "My Secure Login", item.title
+    assert_equal "LOGIN", item.category
+    assert_equal({ "id" => "vault_def456", "name" => "Personal" }, item.vault)
+    assert_equal ["work", "important"], item.tags
+    
+    # Test timestamp casting for top-level keys
+    assert_instance_of Time, item.created_at
+    assert_instance_of Time, item.updated_at
+    assert_instance_of Time, item.last_modified_time
+    assert_equal "2023-12-01T10:30:00Z", item.created_at.iso8601
+    
+    # Test bracket access
+    assert_equal "item_abc123", item["id"]
+    assert_equal "item_abc123", item[:id]
+    assert_instance_of Time, item["created_at"]
+    assert_instance_of Time, item[:updated_at]
+    
+    # Test field methods (basic)
+    assert_equal({ "label" => "username", "value" => "john.doe@example.com" }, item.username)
+    assert_equal({ "label" => "url", "value" => "https://example.com/login" }, item.url)
+    
+    # Test field timestamp casting
+    last_login_field = item.last_login_at
+    assert_instance_of Time, last_login_field["value"]
+    assert_equal "2023-12-25T12:00:00Z", last_login_field["value"].iso8601
+    
+    expiry_field = item.expiry_date
+    assert_instance_of Time, expiry_field["value"]
+    
+    normal_field = item.normal_field
+    assert_equal "just a string", normal_field["value"]
+    
+    # Test CamelCase conversion
+    assert_equal({ "label" => "firstName", "value" => "John" }, item.first_name)
+    assert_equal({ "label" => "lastName", "value" => "Doe" }, item.last_name)
+    assert_equal({ "label" => "phoneNumber", "value" => "555-1234" }, item.phone_number)
+    
+    # Test space handling
+    assert_equal({ "label" => "Security Question", "value" => "What is your favorite color?" }, item.security_question)
+    assert_equal({ "label" => "Recovery Email", "value" => "recovery@example.com" }, item.recovery_email)
+    
+    # Test collision handling
+    assert_equal "top_level_password_value", item.password  # Top-level wins
+    assert_equal({ "label" => "password", "value" => "field_password_value" }, item.field_password)
+    
+    # Test Ruby method collision with numeric suffixes
+    assert_equal "top_level_class_value", item["class"]  # Via bracket access
+    assert_equal({ "label" => "class", "value" => "first_class_field" }, item.field_class)
+    assert_equal({ "label" => "class", "value" => "second_class_field" }, item.field_class_2)
+    assert_equal({ "label" => "class", "value" => "third_class_field" }, item.field_class_3)
+    
+    # Test respond_to for all methods
+    assert item.respond_to?(:id)
+    assert item.respond_to?(:username)
+    assert item.respond_to?(:first_name)
+    assert item.respond_to?(:security_question)
+    assert item.respond_to?(:field_password)
+    assert item.respond_to?(:field_class)
+    assert item.respond_to?(:field_class_2)
+    assert item.respond_to?(:field_class_3)
+    
+    # Test to_h deep copy
+    copy = item.to_h
+    copy["title"] = "Modified Title"
+    copy["vault"]["name"] = "Modified Vault"
+    copy["tags"] << "modified"
+    
+    assert_equal "My Secure Login", item.title
+    assert_equal "Personal", item.vault["name"]
+    assert_equal 2, item.tags.length
+    
+    # Test as_json alias
+    assert_equal item.to_h, item.as_json
+    refute_same item.to_h, item.as_json
+    
+    # Test invalid field entries are ignored
+    refute item.respond_to?(:no_label_field)
+    refute item.respond_to?(:invalid_string_field)
+    refute item.respond_to?(:empty_label)
+  end
+
   def test_field_methods_handle_camel_case_labels
     hash = {
       "fields" => [

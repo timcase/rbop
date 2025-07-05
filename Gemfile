@@ -14,3 +14,4 @@ gem "minitest"
 gem "mocha"
 gem "rubocop", require: false
 gem "rubocop-rails-omakase", require: false
+gem "simplecov", require: false

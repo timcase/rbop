@@ -97,4 +97,35 @@ class TestShell < Minitest::Test
     # Restore original runner
     Rbop.shell_runner = original_runner
   end
+
+  def test_run_with_empty_environment
+    stdout, status = Rbop::Shell.run("echo test", {})
+    
+    assert_equal "test\n", stdout
+    assert_equal 0, status
+  end
+
+  def test_run_with_multiple_environment_variables
+    stdout, status = Rbop::Shell.run("echo $VAR1-$VAR2", { "VAR1" => "hello", "VAR2" => "world" })
+    
+    assert_equal "hello-world\n", stdout
+    assert_equal 0, status
+  end
+
+  def test_command_failed_exception_attributes
+    exception = Rbop::Shell::CommandFailed.new("test command", 42)
+    
+    assert_equal "test command", exception.command
+    assert_equal 42, exception.status
+    assert_equal "Command failed with status 42: test command", exception.message
+    assert_instance_of Rbop::Shell::CommandFailed, exception
+    assert_kind_of RuntimeError, exception
+  end
+
+  def test_array_command_joins_correctly
+    stdout, status = Rbop::Shell.run(["echo", "hello", "world"])
+    
+    assert_equal "hello world\n", stdout
+    assert_equal 0, status
+  end
 end
