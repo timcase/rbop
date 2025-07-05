@@ -14,21 +14,21 @@ module Rbop
 
     def get(title: nil, id: nil, url: nil, vault: nil)
       ensure_signed_in
-      
+
       # Build kwargs hash with only non-nil values
       kwargs = {}
       kwargs[:title] = title if title
       kwargs[:id] = id if id
       kwargs[:url] = url if url
-      
+
       selector = Rbop::Selector.parse(**kwargs)
       args = build_op_args(selector, vault)
       args += ["--format", "json"]
-      
+
       cmd = (["op"] + args).join(" ")
       stdout = Rbop.shell_runner.run(cmd, build_env)
       raw_hash = JSON.parse(stdout)
-      
+
       Rbop::Item.new(raw_hash)
     rescue JSON::ParserError
       raise JSON::ParserError, "Invalid JSON response from 1Password CLI"
@@ -42,7 +42,7 @@ module Rbop
     end
 
     def signin!
-      stdout = Rbop.shell_runner.run("op signin #{@account} --raw --force")
+      stdout = Rbop.shell_runner.run("op signin --account #{@account} --raw --force")
       @token = stdout.strip
       true
     rescue Rbop::Shell::CommandFailed
@@ -57,7 +57,7 @@ module Rbop
 
     def build_op_args(selector, vault_override = nil)
       args = ["item", "get"]
-      
+
       case selector[:type]
       when :title
         args << selector[:value]
@@ -70,13 +70,13 @@ module Rbop
         args << "--share-link"
         args << selector[:value]
       end
-      
+
       args
     end
 
     def build_env
       return {} unless @token
-      
+
       account_short = @account.split('.').first
       { "OP_SESSION_#{account_short}" => @token }
     end

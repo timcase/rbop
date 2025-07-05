@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+
+# Build and install the gem locally
+
+require 'fileutils'
+require 'bundler'
+
+def run_command(cmd)
+  puts "Running: #{cmd}"
+  system(cmd) || abort("Command failed: #{cmd}")
+end
+
+# Clean up old builds
+FileUtils.rm_rf('pkg')
+
+# Build the gem
+run_command('bundle exec rake build')
+
+# Find the built gem
+gem_file = Dir.glob('pkg/*.gem').first
+abort('No gem file found in pkg/') unless gem_file
+
+# Install the gem locally
+run_command("gem install #{gem_file}")
+
+puts "\n✅ Gem built and installed successfully!"
