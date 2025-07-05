@@ -2,6 +2,7 @@
 
 require "active_support/inflector"
 require "time"
+require "set"
 
 module Rbop
   class Item
@@ -81,18 +82,29 @@ module Rbop
     def build_field_methods
       fields = @data["fields"]
       return unless fields.is_a?(Array)
+      
+      used_method_names = Set.new
 
       fields.each do |field|
         next unless field.is_a?(Hash) && field["label"]
         
         label = field["label"]
-        method_name = ActiveSupport::Inflector.underscore(label.gsub(/\s+/, '_'))
+        base_method_name = ActiveSupport::Inflector.underscore(label.gsub(/\s+/, '_'))
+        method_name = base_method_name
         
-        # Check for collisions with existing methods or data keys
-        if has_collision?(method_name)
-          method_name = "field_#{method_name}"
+        # Check if method name is already used or has collision
+        if used_method_names.include?(method_name) || has_collision?(method_name)
+          method_name = "field_#{base_method_name}"
+          
+          # Handle collision enumeration for field_ prefixed names
+          counter = 2
+          while used_method_names.include?(method_name)
+            method_name = "field_#{base_method_name}_#{counter}"
+            counter += 1
+          end
         end
         
+        used_method_names.add(method_name)
         @field_methods[method_name] = { field: field, label: label }
       end
     end

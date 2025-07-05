@@ -364,4 +364,53 @@ class ItemTest < Minitest::Test
     assert_nil item.updated_at
     assert_equal({ "nested" => "object" }, item.deleted_at)
   end
+
+  def test_field_collision_enumeration_numbering
+    hash = {
+      "fields" => [
+        { "label" => "code", "value" => "first_code_value" },
+        { "label" => "code", "value" => "second_code_value" }
+      ]
+    }
+    item = Rbop::Item.new(hash)
+    
+    # First field with "code" label should get the method
+    assert_equal({ "label" => "code", "value" => "first_code_value" }, item.code)
+    
+    # Second field with same "code" label should get field_ prefix
+    assert_equal({ "label" => "code", "value" => "second_code_value" }, item.field_code)
+    
+    # Verify respond_to works
+    assert item.respond_to?(:code)
+    assert item.respond_to?(:field_code)
+  end
+
+  def test_field_collision_enumeration_numbering_with_field_prefix
+    hash = {
+      "class" => "top_level_class",  # This will cause collision
+      "fields" => [
+        { "label" => "class", "value" => "first_class_field" },
+        { "label" => "class", "value" => "second_class_field" },
+        { "label" => "class", "value" => "third_class_field" }
+      ]
+    }
+    item = Rbop::Item.new(hash)
+    
+    # Top-level key should be accessible via bracket access (can't override class method)
+    assert_equal "top_level_class", item["class"]
+    
+    # First field labeled "class" should get field_ prefix due to collision
+    assert_equal({ "label" => "class", "value" => "first_class_field" }, item.field_class)
+    
+    # Second field should get _2 suffix
+    assert_equal({ "label" => "class", "value" => "second_class_field" }, item.field_class_2)
+    
+    # Third field should get _3 suffix
+    assert_equal({ "label" => "class", "value" => "third_class_field" }, item.field_class_3)
+    
+    # Verify respond_to works
+    assert item.respond_to?(:field_class)
+    assert item.respond_to?(:field_class_2)
+    assert item.respond_to?(:field_class_3)
+  end
 end
