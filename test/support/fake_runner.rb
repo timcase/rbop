@@ -3,7 +3,7 @@
 class FakeShellRunner
   class << self
     def run(cmd, env = {})
-      invocations << cmd
+      invocations << { cmd: cmd, env: env }
       response = registry.find { |pattern, _| cmd.match?(pattern) }
       if response
         stdout = response[1][:stdout]
@@ -32,6 +32,10 @@ class FakeShellRunner
 
     def invocations
       @invocations ||= []
+    end
+
+    def find_invocation(cmd_pattern)
+      invocations.find { |inv| inv[:cmd].match?(cmd_pattern) }
     end
 
     private

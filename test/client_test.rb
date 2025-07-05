@@ -99,7 +99,7 @@ class ClientTest < Minitest::Test
     end
     
     assert_equal "get method not yet implemented", error.message
-    invocations = FakeShellRunner.invocations
+    invocations = FakeShellRunner.invocations.map { |inv| inv[:cmd] }
     assert_includes invocations, "op --version"
     assert_includes invocations, "op whoami --format=json"
     refute_includes invocations, "op signin test-account --raw --force"
@@ -117,7 +117,7 @@ class ClientTest < Minitest::Test
     end
     
     assert_equal "get method not yet implemented", error.message
-    invocations = FakeShellRunner.invocations
+    invocations = FakeShellRunner.invocations.map { |inv| inv[:cmd] }
     assert_includes invocations, "op --version"
     assert_includes invocations, "op whoami --format=json"
     assert_includes invocations, "op signin test-account --raw --force"
@@ -135,9 +135,49 @@ class ClientTest < Minitest::Test
     end
     
     assert_equal "1Password sign-in failed", error.message
-    invocations = FakeShellRunner.invocations
+    invocations = FakeShellRunner.invocations.map { |inv| inv[:cmd] }
     assert_includes invocations, "op --version"
     assert_includes invocations, "op whoami --format=json"
     assert_includes invocations, "op signin test-account --raw --force"
+  end
+
+  def test_session_token_passed_to_whoami_after_signin
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op signin test-account --raw --force", stdout: "OPSESSIONTOKEN\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: '{"account":"test-account"}', status: 0)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    client.signin!
+    client.whoami?
+    
+    whoami_invocation = FakeShellRunner.find_invocation("op whoami --format=json")
+    refute_nil whoami_invocation
+    assert_equal({ "OP_SESSION_test-account" => "OPSESSIONTOKEN" }, whoami_invocation[:env])
+  end
+
+  def test_account_short_handles_dots_correctly
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op signin my-team.1password.com --raw --force", stdout: "OPSESSIONTOKEN\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: '{"account":"my-team.1password.com"}', status: 0)
+    
+    client = Rbop::Client.new(account: "my-team.1password.com", vault: "test-vault")
+    client.signin!
+    client.whoami?
+    
+    whoami_invocation = FakeShellRunner.find_invocation("op whoami --format=json")
+    refute_nil whoami_invocation
+    assert_equal({ "OP_SESSION_my-team" => "OPSESSIONTOKEN" }, whoami_invocation[:env])
+  end
+
+  def test_empty_env_when_no_token
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define("op whoami --format=json", stdout: "", status: 1)
+    
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    client.whoami?
+    
+    whoami_invocation = FakeShellRunner.find_invocation("op whoami --format=json")
+    refute_nil whoami_invocation
+    assert_equal({}, whoami_invocation[:env])
   end
 end
