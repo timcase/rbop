@@ -5,6 +5,7 @@ require "test_helper"
 class TestRbop < Minitest::Test
   def test_that_it_has_a_version_number
     refute_nil ::Rbop::VERSION
+    assert_equal "0.1.0", ::Rbop::VERSION
   end
 
   def test_version_is_string
