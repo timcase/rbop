@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "shellwords"
+
 module Rbop
   # Shell runner for executing system commands
   module Shell
@@ -22,7 +24,7 @@ module Rbop
     # @param env [Hash] Environment variables to prepend
     # @return [Array<String, Integer>] stdout and exit status
     def run(cmd, env = {})
-      cmd_string = cmd.is_a?(Array) ? cmd.join(" ") : cmd
+      cmd_string = cmd.is_a?(Array) ? shell_escape_array(cmd) : cmd
 
       # Log command execution if debug mode is enabled
       if Rbop.debug
@@ -61,5 +63,11 @@ module Rbop
 
       [ stdout, status ]
     end
+
+    def shell_escape_array(cmd_array)
+      Shellwords.join(cmd_array)
+    end
+
+    module_function :shell_escape_array
   end
 end

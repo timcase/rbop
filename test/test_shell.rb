@@ -260,4 +260,18 @@ class TestShell < Minitest::Test
     assert_equal 1, exception.status
     assert_match(/error message/, exception.command)
   end
+
+  def test_array_command_with_spaces_properly_quoted
+    stdout, status = Rbop::Shell.run(["echo", "hello world", "with spaces"])
+
+    assert_equal "hello world with spaces\n", stdout
+    assert_equal 0, status
+  end
+
+  def test_array_command_with_single_quotes_escaped
+    stdout, status = Rbop::Shell.run(["echo", "it's working"])
+
+    assert_equal "it's working\n", stdout
+    assert_equal 0, status
+  end
 end

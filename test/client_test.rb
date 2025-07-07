@@ -302,4 +302,22 @@ class ClientTest < Minitest::Test
 
     assert_equal [ "item", "get", "My Login", "--vault", "override-vault" ], args
   end
+
+  def test_get_with_title_containing_spaces
+    FakeShellRunner.define("op --version", stdout: "2.25.0\n", status: 0)
+    FakeShellRunner.define(/^op item get/, stdout: '{"id":"abc123","title":"My Complex Login Item"}', status: 0)
+
+    client = Rbop::Client.new(account: "test-account", vault: "test-vault")
+    item = client.get(title: "My Complex Login Item")
+
+    assert_instance_of Rbop::Item, item
+    assert_equal "abc123", item.raw["id"]
+    assert_equal "My Complex Login Item", item.raw["title"]
+
+    # Verify the command was constructed correctly
+    get_call = FakeShellRunner.find_call(/^op item get/)
+    refute_nil get_call
+    expected_cmd = [ "op", "item", "get", "My Complex Login Item", "--vault", "test-vault", "--format", "json", "--account", "test-account" ]
+    assert_equal expected_cmd, get_call[:cmd]
+  end
 end
