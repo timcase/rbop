@@ -8,7 +8,9 @@
       "Bash(gem list:*)",
       "Bash(bundle show:*)",
       "Bash(rake install)",
-      "Bash(op signout:*)"
+      "Bash(op signout:*)",
+      "Bash(gem build:*)",
+      "Bash(gem signin:*)"
     ],
     "deny": []
   }
